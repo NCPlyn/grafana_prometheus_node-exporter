@@ -41,7 +41,7 @@
         scrape_interval: 15s  #time interval of scraping data
         scrape_timeout: 2s
         static_configs:
-          - targets: ['localhost:9100'] #enter IP's of computers to scrape data from / monitor with port 9100
+          - targets: ['localhost:9100'] #enter IP's of computers to scrape data from / monitor with port 9100 (for nvidia_gpu_exporter use port 9835)
     ```
 - Configure Prometheus systemctl service  
     ```sudo nano /etc/systemd/system/prometheus.service```  
@@ -120,6 +120,13 @@ You can also use bash script in this repo to install node_exporter in matter of 
     cd ..
     rm -rf node_exporter-1.4.0-rc.0.linux-amd64
     rm -rf node_exporter-1.4.0-rc.0.linux-amd64.tar.gz
+    ```
+
+## Nvidia_gpu_exporter:
+- If you want to see your Nvidia statics too...  
+    ```
+    sudo wget https://github.com/utkuozdemir/nvidia_gpu_exporter/releases/download/v1.1.0/nvidia-gpu-exporter_1.1.0_linux_amd64.deb
+    sudo dpkg -i nvidia-gpu-exporter_1.1.0_linux_amd64.deb
     ```
 
 ## Grafana:
