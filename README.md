@@ -1,4 +1,4 @@
-# Guide to install __Prometheus__ & __Grafana__ & __node_exporter__ as of 9.2022
+# Guide to install __Prometheus__ & __Grafana__ & __node_exporter__
 
 ## Prometheus:
 - Create user, folders and set privileges for Prometheus
@@ -132,8 +132,9 @@ You can also use bash script in this repo to install node_exporter in matter of 
 ## Grafana:
 - Add Grafana repo key and source
     ```
-    wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
-    echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+    sudo mkdir -p /etc/apt/keyrings/
+    wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
     ```
 - Update package information and install Grafana
     ```
