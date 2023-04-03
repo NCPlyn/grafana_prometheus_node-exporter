@@ -1,4 +1,4 @@
-# Guide to install __Prometheus__ & __Grafana__ & __node_exporter__
+# Guide to install __Prometheus__ & __Grafana__ & exporters
 
 ## Prometheus:
 - Create user, folders and set privileges for Prometheus
@@ -37,11 +37,11 @@
       - job_name: "prometheus"
         static_configs:
           - targets: ["localhost:9090"]
-      - job_name: "nodes" #you can name this however you want, or create more of these 'groups'
+      - job_name: "nodes"
         scrape_interval: 15s  #time interval of scraping data
         scrape_timeout: 2s
         static_configs:
-          - targets: ['localhost:9100'] #enter IP's of computers to scrape data from / monitor with port 9100 (for nvidia_gpu_exporter use port 9835)
+          - targets: ['localhost:9100'] #enter IP's of computers to scrape data from with port 9100 for node_exporter
     ```
 - Configure Prometheus systemctl service  
     ```sudo nano /etc/systemd/system/prometheus.service```  
@@ -123,11 +123,103 @@ You can also use bash script in this repo to install node_exporter in matter of 
     ```
 
 ## Nvidia_gpu_exporter:
-- If you want to see your Nvidia statics too...  
+- If you want to see your Nvidia statistics, install nvidia exporter on every node:
     ```
     sudo wget https://github.com/utkuozdemir/nvidia_gpu_exporter/releases/download/v1.1.0/nvidia-gpu-exporter_1.1.0_linux_amd64.deb
     sudo dpkg -i nvidia-gpu-exporter_1.1.0_linux_amd64.deb
     ```
+- Add new job with valid IPs to your prometheus config:
+    ```
+      - job_name: "nvidia"
+        scrape_interval: 15s  #time interval of scraping data
+        scrape_timeout: 2s
+        static_configs:
+          - targets: ['localhost:9835'] #enter IP's of computers to scrape data from with port 9835 for nvidia_gpu_exporter
+    ```
+- Restart prometheus with `sudo systemctl restart prometheus` and add dashboard with ID: 14574 in your Grafana
+
+## ipmi_exporter
+- If you want to see ipmi compatibile statistics:
+- Every client server add new user to IPMI if doesn't already exist (-user list):
+    ```
+    wget https://github.com/NCPlyn/grafana_prometheus_node-exporter/raw/main/IPMICFG-Linux.x86_64
+    sudo chmod +x IPMICFG-Linux.x86_64
+    sudo ./IPMICFG-Linux.x86_64 -user add 4 Prometheus ExporterOfIPMI 2 #maybe use different user & pass
+    ```
+- On server with prometheus:
+    - `sudo apt install freeipmi-tools`
+    - Extract exporter binary
+        ```
+        wget https://github.com/prometheus-community/ipmi_exporter/releases/download/v1.6.1/ipmi_exporter-1.6.1.linux-amd64.tar.gz
+        tar -xvf ipmi_exporter-1.6.1.linux-amd64.tar.gz
+        sudo mv ipmi_exporter-1.6.1.linux-amd64/ipmi_exporter /usr/bin/ipmi_exporter
+        sudo chmod 755 /usr/bin/ipmi_exporter
+        ```
+    - Make & edit config file
+        ```
+        wget https://raw.githubusercontent.com/prometheus-community/ipmi_exporter/master/ipmi_remote.yml
+        nano ipmi_remote.yml #<- edit login details to ones you set
+        sudo cp ipmi_remote.yml /etc/prometheus/ipmi_remote.yml
+        ```
+    - Make systemctl service: `sudo nano /etc/systemd/system/ipmi_exporter.service`
+        ```
+        [Unit]
+        Description=IPMI Exporter
+        Wants=network-online.target
+        After=network-online.target
+        [Service]
+        User=root
+        Group=root
+        Type=simple
+        ExecStart=/usr/bin/ipmi_exporter --config.file=/etc/prometheus/ipmi_remote.yml
+        [Install]
+        WantedBy=multi-user.target
+        ```
+        ```
+        sudo systemctl enable ipmi_exporter
+        sudo systemctl start ipmi_exporter
+        ```
+    - Set ipmi_exporter endpoints: sudo nano /etc/prometheus/ipmi_targets.yml
+        ```
+        - targets:
+          - (ip or domain)
+          labels:
+            job: ipmi_exporter
+        ```
+    - Add new job to prometheus config: `sudo nano /etc/prometheus/prometheus.yml`
+        ```
+          - job_name: "ipmi_exporter"
+            params:
+              module: ['default']
+            scrape_interval: 30s
+            scrape_timeout: 30s
+            metrics_path: /ipmi
+            scheme: http
+            file_sd_configs:
+            - files:
+              - /etc/prometheus/ipmi_targets.yml
+              refresh_interval: 5m
+            relabel_configs:
+            - source_labels: [__address__]
+              separator: ;
+              regex: (.*)
+              target_label: __param_target
+              replacement: ${1}
+              action: replace
+            - source_labels: [__param_target]
+              separator: ;
+              regex: (.*)
+              target_label: instance
+              replacement: ${1}
+              action: replace
+            - separator: ;
+              regex: .*
+              target_label: __address__
+              replacement: localhost:9290
+              action: replace
+        ```
+    - Restart prometheus and add dashboard to your Grafana with ID: 15765
+        - `sudo systemctl restart prometheus`
 
 ## Grafana:
 - Add Grafana repo key and source
